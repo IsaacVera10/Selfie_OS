@@ -2575,6 +2575,9 @@ void init_selfie(uint64_t argc, uint64_t *argv)
   selfie_argv = argv;
 
   selfie_name = get_argument();
+
+  //LAB0
+  printf("%s: This is Isaac Vera's selfie\n", selfie_name);
 }
 
 void init_system()

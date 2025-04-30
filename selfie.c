@@ -106,6 +106,8 @@ uint64_t open(char *filename, uint64_t flags, ...);
 // selfie bootstraps void* to uint64_t* and unsigned to uint64_t!
 void *malloc(unsigned long);
 
+uint64_t fork(); //fork
+
 // selfie bootstraps the following *printf procedures
 int printf(const char *format, ...);
 int sprintf(char *str, const char *format, ...);
@@ -1299,6 +1301,10 @@ void emit_malloc();
 uint64_t try_brk(uint64_t *context, uint64_t new_program_break);
 void implement_brk(uint64_t *context);
 
+
+void emit_fork();
+uint64_t implement_fork(uint64_t *context); //fork
+
 uint64_t is_boot_level_zero();
 
 void emit_dummy_syscall(); //LAB01
@@ -1317,6 +1323,7 @@ uint64_t SYSCALL_WRITE = 64;
 uint64_t SYSCALL_OPENAT = 56;
 uint64_t SYSCALL_BRK = 214;
 
+uint64_t SYSCALL_FORK = 220; //fork
 uint64_t SYSCALL_DUMMY_SYSCALL = 1; //LAB01
 /* DIRFD_AT_FDCWD corresponds to AT_FDCWD in fcntl.h and
    is passed as first argument of the openat system call
@@ -6850,6 +6857,7 @@ void selfie_compile()
   emit_write();
   emit_open();
   emit_dummy_syscall();//LAB01
+  emit_fork(); //fork
 
   emit_malloc();
 
@@ -8423,6 +8431,10 @@ void implement_dummy_syscall(uint64_t* context) {
   set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
 }
 
+void emit_fork(){//fork
+  create_symbol_table_entry(GLOBAL_TABLE, string_copy("fork"),
+                            0, PROCEDURE, UINT64_T, 0, code_size);
+}
 
 void implement_write(uint64_t *context)
 {
@@ -10924,22 +10936,22 @@ void do_ecall()
   {
     read_register(REG_A0);
 
-    if (*(registers + REG_A7) == SYSCALL_DUMMY_SYSCALL) {//LAB01
-      write_register(REG_A0);
-    } else{
-    if (*(registers + REG_A7) != SYSCALL_EXIT)
-    {
-      if (*(registers + REG_A7) != SYSCALL_BRK)
-      {
-        read_register(REG_A1);
-        read_register(REG_A2);
+    if(*(registers + REG_A7) != SYSCALL_FORK){//fork
+      if (*(registers + REG_A7) != SYSCALL_DUMMY_SYSCALL) {//LAB01
+        if (*(registers + REG_A7) != SYSCALL_EXIT)
+        {
+          if (*(registers + REG_A7) != SYSCALL_BRK)
+          {
+            read_register(REG_A1);
+            read_register(REG_A2);
 
-        if (*(registers + REG_A7) == SYSCALL_OPENAT)
-          read_register(REG_A3);
+            if (*(registers + REG_A7) == SYSCALL_OPENAT)
+              read_register(REG_A3);
+          }
+
+          write_register(REG_A0);
+        }
       }
-
-      write_register(REG_A0);
-    }
     }
     // all system calls other than switch are handled by exception
     throw_exception(EXCEPTION_SYSCALL, *(registers + REG_A7));

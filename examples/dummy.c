@@ -24,4 +24,5 @@ int main (int argc, char** argv) {
 	uint64_t x;
 	x = dummy_syscall(20);
 	print_number (x);
+	return 0;
 }

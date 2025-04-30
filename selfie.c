@@ -1301,6 +1301,9 @@ void implement_brk(uint64_t *context);
 
 uint64_t is_boot_level_zero();
 
+void emit_dummy_syscall(); //LAB01
+void implement_dummy_syscall(uint64_t *context); //LAB01
+
 // ------------------------ GLOBAL CONSTANTS -----------------------
 
 uint64_t debug_read = 0;
@@ -1314,6 +1317,7 @@ uint64_t SYSCALL_WRITE = 64;
 uint64_t SYSCALL_OPENAT = 56;
 uint64_t SYSCALL_BRK = 214;
 
+uint64_t SYSCALL_DUMMY_SYSCALL = 1; //LAB01
 /* DIRFD_AT_FDCWD corresponds to AT_FDCWD in fcntl.h and
    is passed as first argument of the openat system call
    emulating the (in Linux) deprecated open system call. */
@@ -2577,7 +2581,7 @@ void init_selfie(uint64_t argc, uint64_t *argv)
   selfie_name = get_argument();
 
   //LAB0
-  printf("%s: This is Isaac Vera's selfie\n", selfie_name);
+  printf("%s: This is Isaac Vera's Selfie!\n", selfie_name);
 }
 
 void init_system()
@@ -6845,6 +6849,7 @@ void selfie_compile()
   emit_read();
   emit_write();
   emit_open();
+  emit_dummy_syscall();//LAB01
 
   emit_malloc();
 
@@ -8395,6 +8400,29 @@ void emit_write()
 
   emit_jalr(REG_ZR, REG_RA, 0);
 }
+
+void emit_dummy_syscall(){//LAB01
+  create_symbol_table_entry(GLOBAL_TABLE, string_copy("dummy_syscall"),
+                            0, PROCEDURE, UINT64_T, 1, code_size);
+  
+  emit_load(REG_A0, REG_SP, 0); // dummy syscall
+  emit_addi(REG_SP, REG_SP, WORDSIZE);
+
+  emit_addi(REG_A7, REG_ZR, SYSCALL_DUMMY_SYSCALL);
+  emit_ecall();
+  emit_jalr(REG_ZR, REG_RA, 0);
+}
+void implement_dummy_syscall(uint64_t* context) {
+  uint64_t value;
+  uint64_t result;
+
+  value = *(get_regs(context) + REG_A0);
+  result = value + 2025;
+  *(get_regs(context) + REG_A0) = result;
+
+  set_pc(context, get_pc(context) + INSTRUCTIONSIZE);
+}
+
 
 void implement_write(uint64_t *context)
 {
@@ -10896,6 +10924,9 @@ void do_ecall()
   {
     read_register(REG_A0);
 
+    if (*(registers + REG_A7) == SYSCALL_DUMMY_SYSCALL) {//LAB01
+      write_register(REG_A0);
+    } else{
     if (*(registers + REG_A7) != SYSCALL_EXIT)
     {
       if (*(registers + REG_A7) != SYSCALL_BRK)
@@ -10909,7 +10940,7 @@ void do_ecall()
 
       write_register(REG_A0);
     }
-
+    }
     // all system calls other than switch are handled by exception
     throw_exception(EXCEPTION_SYSCALL, *(registers + REG_A7));
   }
@@ -12698,6 +12729,9 @@ uint64_t handle_system_call(uint64_t *context)
 
     // TODO: exit only if all contexts have exited
     return EXIT;
+  }
+  else if (a7 == SYSCALL_DUMMY_SYSCALL){//LAB01
+    implement_dummy_syscall(context);
   }
   else
   {
